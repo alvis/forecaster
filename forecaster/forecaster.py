@@ -154,6 +154,10 @@ class Forecaster:
             )
             self.model.load_state_dict(model["state_dict"])
 
+    def load_last_checkpoint(self) -> None:
+        """Try to load the last checkpoint."""
+        self.load_state(str(Path(self._get_checkpoint_dir(), "last.ckpt")))
+
     def fit(
         self,
         training_set: Dataset,
