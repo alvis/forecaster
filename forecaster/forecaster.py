@@ -22,7 +22,7 @@ from torch import cuda, device, load, Tensor
 from torch.utils.data import Dataset, DataLoader
 
 from ._logging import get_metric_history
-from ._plotting import plot_loss_history
+from ._plotting import plot_hyperparameter_comparison, plot_loss_history
 from ._progress import ProgressBar
 from ._utilities import dict_to_str
 
@@ -270,3 +270,13 @@ class Forecaster:
             a plotly figure showing the trends
         """
         return plot_loss_history(self._get_log_dir())
+
+    def plot_hyperparameter_comparison(self) -> Figure:
+        """
+        Plot validation loss trends of all hyper parameters configurations.
+
+        Returns
+        -------
+            a plotly figure showing the trends
+        """
+        return plot_hyperparameter_comparison(self._get_log_root_dir())
