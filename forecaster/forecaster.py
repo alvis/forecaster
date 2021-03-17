@@ -4,7 +4,7 @@ A timeseries forecaster.
 moduleauthor:: Alvis HT Tang <alvis@hilbert.space>
 """
 
-from os import cpu_count
+from os import cpu_count, rename
 from pathlib import Path
 from shutil import rmtree
 from typing import Union
@@ -16,7 +16,7 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
 )
 from pytorch_lightning.loggers import CSVLogger
-from torch import cuda, Tensor
+from torch import cuda, device, load, Tensor
 from torch.utils.data import Dataset, DataLoader
 
 from ._progress import ProgressBar
@@ -45,6 +45,10 @@ class Forecaster:
         super().__init__()
         self.model = model
         self.root_dir = root_dir
+
+        # current model state
+        self.running_sanity_check = False
+        self.validation_loss = None
 
     def _get_hparams_str(self) -> str:
         """
@@ -90,6 +94,16 @@ class Forecaster:
             )
         )
 
+    def _get_model_path(self) -> str:
+        return str(
+            Path(
+                self.root_dir,
+                "models",
+                type(self.model).__name__,
+                f"{self._get_hparams_str()}.model",
+            )
+        )
+
     # # # # # # # # # # Callback Hooks # # # # # # # # # #
 
     def _on_train_batch_end(self, loss: Tensor) -> Tensor:
@@ -102,9 +116,36 @@ class Forecaster:
         """Define tasks after a validation step."""
         self.model.log("validation_loss", loss, prog_bar=True)
 
+        # only store the current validation loss at the beginning
+        if self.running_sanity_check:
+            self.validation_loss = loss.detach()
+
         return loss
 
+    def _on_validation_epoch_end(self) -> None:
+        """Define tasks after each validation epoch."""
+        # stop updating the initial model's validation loss
+        self.running_sanity_check = False
+
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+    def load_state(self, path: str) -> None:
+        """
+        Try to load the model state from the given path.
+
+        Parameters
+        ----------
+        path
+            path to the model file
+        """
+        if Path(path).exists():
+            model = load(
+                path,
+                map_location=device("cuda")
+                if cuda.is_available()
+                else device("cpu"),
+            )
+            self.model.load_state_dict(model["state_dict"])
 
     def fit(
         self,
@@ -155,6 +196,7 @@ class Forecaster:
                 # trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
                 lambda *args: self._on_validation_batch_end(args[2])
             ),
+            on_validation_end=lambda *args: self._on_validation_epoch_end(),
         )
 
         trainer = Trainer(
@@ -167,6 +209,7 @@ class Forecaster:
             progress_bar_refresh_rate=0,
         )
 
+        self.running_sanity_check = True
         self.model.unfreeze()
         trainer.fit(
             self.model,
@@ -184,3 +227,19 @@ class Forecaster:
             ),
         )
         self.model.freeze()
+
+        # reload the best weights
+        best_model_path = (
+            checkpoint.best_model_path
+            if (
+                self.validation_loss is None
+                or checkpoint.best_model_score <= self.validation_loss
+            )
+            else self._get_model_path()
+        )
+        self.load_state(best_model_path)
+
+        # save the best model
+        mode_path = self._get_model_path()
+        Path(mode_path).parent.mkdir(parents=True, exist_ok=True)
+        rename(checkpoint.best_model_path, mode_path)
