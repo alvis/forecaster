@@ -50,6 +50,9 @@ class Forecaster:
         self.running_sanity_check = False
         self.validation_loss = None
 
+        # reload the weights if trained previously
+        self.load_state(self._get_model_path())
+
     def _get_hparams_str(self) -> str:
         """
         Get a string representation of the current hyper parameters.
