@@ -10,6 +10,7 @@ from shutil import rmtree
 from typing import Union
 
 import pandas as pd
+from plotly.graph_objects import Figure
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import (
     EarlyStopping,
@@ -21,6 +22,7 @@ from torch import cuda, device, load, Tensor
 from torch.utils.data import Dataset, DataLoader
 
 from ._logging import get_metric_history
+from ._plotting import plot_loss_history
 from ._progress import ProgressBar
 from ._utilities import dict_to_str
 
@@ -258,3 +260,13 @@ class Forecaster:
             the loss history packaged in a pandas dataframe
         """
         return get_metric_history(self._get_log_dir())
+
+    def plot_loss_history(self) -> Figure:
+        """
+        Plot the training and validation loss.
+
+        Returns
+        -------
+            a plotly figure showing the trends
+        """
+        return plot_loss_history(self._get_log_dir())

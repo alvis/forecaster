@@ -24,6 +24,8 @@ setup(
     install_requires=[
         # data processing
         "pandas==1.*",
+        # plotting
+        "plotly==4.*",
         # machine learning
         "torch==1.*",
         "pytorch_lightning==1.*",
