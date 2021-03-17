@@ -22,6 +22,8 @@ setup(
     ],
     python_requires=">=3.7",
     install_requires=[
+        # data processing
+        "pandas==1.*",
         # machine learning
         "torch==1.*",
         "pytorch_lightning==1.*",

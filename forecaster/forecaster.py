@@ -9,6 +9,7 @@ from pathlib import Path
 from shutil import rmtree
 from typing import Union
 
+import pandas as pd
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import (
     EarlyStopping,
@@ -19,6 +20,7 @@ from pytorch_lightning.loggers import CSVLogger
 from torch import cuda, device, load, Tensor
 from torch.utils.data import Dataset, DataLoader
 
+from ._logging import get_metric_history
 from ._progress import ProgressBar
 from ._utilities import dict_to_str
 
@@ -246,3 +248,13 @@ class Forecaster:
         mode_path = self._get_model_path()
         Path(mode_path).parent.mkdir(parents=True, exist_ok=True)
         rename(checkpoint.best_model_path, mode_path)
+
+    def get_metric_history(self) -> pd.DataFrame:
+        """
+        Get loss history after each epoch.
+
+        Returns
+        -------
+            the loss history packaged in a pandas dataframe
+        """
+        return get_metric_history(self._get_log_dir())
