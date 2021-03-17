@@ -7,7 +7,7 @@ moduleauthor:: Alvis HT Tang <alvis@hilbert.space>
 from os import cpu_count, rename
 from pathlib import Path
 from shutil import rmtree
-from typing import Union
+from typing import Callable, Union
 
 import pandas as pd
 from plotly.graph_objects import Figure
@@ -250,6 +250,45 @@ class Forecaster:
         mode_path = self._get_model_path()
         Path(mode_path).parent.mkdir(parents=True, exist_ok=True)
         rename(checkpoint.best_model_path, mode_path)
+
+    def fit_progressively(
+        self,
+        timeseries: pd.DataFrame,
+        *,
+        to_dataset: Callable[[pd.DataFrame], Dataset],
+        training_steps: Union[int, pd.Timedelta],
+        validation_steps: Union[int, pd.Timedelta],
+        training_portion: Union[int, float] = 1.0,
+        validation_portion: Union[int, float] = 1.0,
+    ) -> None:
+        """
+        Fit the model with the given sequential data.
+
+        Parameters
+        ----------
+        series
+            sequential data to be fitted
+        to_dataset
+            lambda function converting a sample of the sequence to a dataset
+        training_steps
+            length of the sequence to be used for training
+        validation_steps
+            length of the sequence to be used for validation
+        """
+        start = timeseries.index[0]
+        while start + training_steps + validation_steps < timeseries.index[-1]:
+            split = start + training_steps
+            end = split + validation_steps
+            training_set = to_dataset(timeseries[start:split])
+            validation_set = to_dataset(timeseries[split:end])
+
+            self.fit(
+                training_set=training_set,
+                validation_set=validation_set,
+                training_portion=training_portion,
+                validation_portion=validation_portion,
+            )
+            start += training_steps
 
     def get_metric_history(self) -> pd.DataFrame:
         """
