@@ -19,6 +19,7 @@ from pytorch_lightning.loggers import CSVLogger
 from torch import cuda, Tensor
 from torch.utils.data import Dataset, DataLoader
 
+from ._progress import ProgressBar
 from ._utilities import dict_to_str
 
 
@@ -141,6 +142,7 @@ class Forecaster:
             name=Path(self._get_log_dir()).parent.name,
             version=Path(self._get_log_dir()).name,
         )
+        progress = ProgressBar()
         stopper = EarlyStopping(monitor="validation_loss")
         callback = LambdaCallback(
             on_train_batch_end=(
@@ -158,7 +160,7 @@ class Forecaster:
         trainer = Trainer(
             gpus=cuda.device_count(),
             logger=logger,
-            callbacks=[callback, checkpoint, stopper],
+            callbacks=[callback, checkpoint, progress, stopper],
             limit_train_batches=training_portion,
             limit_val_batches=validation_portion,
             max_epochs=max_epochs,
