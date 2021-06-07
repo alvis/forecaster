@@ -200,7 +200,7 @@ class Forecaster:
             on_train_batch_end=(
                 # trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
                 lambda *args: self._on_train_batch_end(
-                    args[2][0][0]["minimize"]
+                    args[2]["loss"] # args[2][0][0]["minimize"]
                 )
             ),
             on_validation_batch_end=(
